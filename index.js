@@ -32,32 +32,75 @@ const s3Client = new S3Client({
 // In-memory cache
 const cache = {};
 
+const blocked_domains = [
+  'googlesyndication.com',
+  'adservice.google.com',
+];
+
 // Capture screenshot of a webpage
 const captureScreenshot = async (url) => {
   let options = {};
 
   if (process.env.AWS_LAMBDA_FUNCTION_VERSION) {
+
+    const minimal_args = [
+  '--autoplay-policy=user-gesture-required',
+  '--disable-background-networking',
+  '--disable-background-timer-throttling',
+  '--disable-backgrounding-occluded-windows',
+  '--disable-breakpad',
+  '--disable-client-side-phishing-detection',
+  '--disable-component-update',
+  '--disable-default-apps',
+  '--disable-dev-shm-usage',
+  '--disable-domain-reliability',
+  '--disable-extensions',
+  '--disable-features=AudioServiceOutOfProcess',
+  '--disable-hang-monitor',
+  '--disable-ipc-flooding-protection',
+  '--disable-notifications',
+  '--disable-offer-store-unmasked-wallet-cards',
+  '--disable-popup-blocking',
+  '--disable-print-preview',
+  '--disable-prompt-on-repost',
+  '--disable-renderer-backgrounding',
+  '--disable-setuid-sandbox',
+  '--disable-speech-api',
+  '--disable-sync',
+  '--hide-scrollbars',
+  '--ignore-gpu-blacklist',
+  '--metrics-recording-only',
+  '--mute-audio',
+  '--no-default-browser-check',
+  '--no-first-run',
+  '--no-pings',
+  '--no-sandbox',
+  '--no-zygote',
+  '--password-store=basic',
+  '--use-gl=swiftshader',
+  '--use-mock-keychain',
+];
     options = {
-      args: [...chrome.args, "--hide-scrollbars", "--disable-web-security"],
+      args: [...chrome.args, "--hide-scrollbars", "--disable-web-security", ...minimal_args],
       defaultViewport: chrome.defaultViewport,
       executablePath: await chrome.executablePath,
       headless: true,
       ignoreHTTPSErrors: true,
+      userDataDir: './my/path'
     }
   }
   try {
     const browser = await puppeteer.launch(options);
     const page = await browser.newPage();
-
     await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      if (['image', 'stylesheet', 'font', 'script'].includes(request.resourceType())) {
-        request.abort();
-      } else {
-        request.continue();
-      }
-    });
-
+page.on('request', request => {
+  const url = request.url()
+  if (blocked_domains.some(domain => url.includes(domain))) {
+    request.abort();
+  } else {
+    request.continue();
+  }
+});
     await page.goto(url, { waitUntil: "networkidle2" }); // Wait until the network is idle
     const screenshotBuffer = await page.screenshot();
     await browser.close();
