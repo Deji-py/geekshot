@@ -4,8 +4,7 @@
   
   "functions": {
     "api/**/*.js": {
-      "maxDuration": 60 // Set this to a higher value as needed, within Vercel's limits
-    }
+      "maxDuration": 60    }
   
 }
 }
