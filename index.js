@@ -43,11 +43,21 @@ const captureScreenshot = async (url) => {
       executablePath: await chrome.executablePath,
       headless: true,
       ignoreHTTPSErrors: true,
-    };
+    }
   }
   try {
     const browser = await puppeteer.launch(options);
     const page = await browser.newPage();
+
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      if (['image', 'stylesheet', 'font', 'script'].includes(request.resourceType())) {
+        request.abort();
+      } else {
+        request.continue();
+      }
+    });
+
     await page.goto(url, { waitUntil: "networkidle2" }); // Wait until the network is idle
     const screenshotBuffer = await page.screenshot();
     await browser.close();
